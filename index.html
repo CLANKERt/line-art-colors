@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Pick a fill color and get matching line art, shadow and highlight colors for vector drawings.">
+<title>Line Art Colors</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2712%27 fill=%27%234CAF50%27 stroke=%27%23137C22%27 stroke-width=%275%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+/* Layout: color picker + settings on the left, the four-color result card on the right; on phones the result sits between picker and settings */
+:root{
+  --paper:#F3F2F7; --surface:#FFFFFF; --ink:#1E1B2E; --muted:#686580; --rule:#DAD7E5; --accent:#5B3FB8; --accent-ink:#FFFFFF; --danger:#C62D4A;
+  --check-a:#FFFFFF; --check-b:#ECEAF2;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body:"Figtree", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#14121C; --surface:#1E1B2A; --ink:#ECEAF5; --muted:#A3A0B8; --rule:#34304A; --accent:#A892F2; --accent-ink:#14121C; --danger:#FF8FA5;
+  --check-a:#262233; --check-b:#2C283B; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#14121C; --surface:#1E1B2A; --ink:#ECEAF5; --muted:#A3A0B8; --rule:#34304A; --accent:#A892F2; --accent-ink:#14121C; --danger:#FF8FA5;
+  --check-a:#262233; --check-b:#2C283B; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.page{max-width:1060px;margin:0 auto;padding-block:28px 48px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+  display:grid;gap:26px}
+h1,h2{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-0.01em}
+h1{font-size:clamp(28px,5vw,38px);font-weight:800;line-height:1.05}
+h2{font-size:17px;font-weight:600}
+.lede{margin:6px 0 0;color:var(--muted);max-width:58ch}
+.label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+
+.layout{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);grid-template-rows:auto 1fr;
+  grid-template-areas:"pick result" "settings result";gap:22px 28px;align-items:start}
+.pickpanel{grid-area:pick;display:grid;gap:18px}
+.result{grid-area:result}
+.settings{grid-area:settings}
+@media (max-width:820px){.layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto;grid-template-areas:"pick" "result" "settings"}}
+.layout > *{min-width:0}
+.pickpanel,.field,.settings,.group,.slider{grid-template-columns:minmax(0,1fr)}
+
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:2px solid var(--rule);background:var(--surface);
+  border-radius:10px;padding:8px 14px;font-weight:600;font-size:14px;cursor:pointer}
+.btn:hover:not(:disabled){border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.small{padding:4px 10px;font-size:13px;border-radius:8px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn svg{width:15px;height:15px;flex:none}
+
+/* Picker */
+.field{display:grid;gap:8px}
+.pick-row{display:flex;gap:8px;align-items:stretch}
+#pick{width:58px;height:52px;padding:0;border:2px solid var(--rule);border-radius:var(--radius);background:var(--surface);cursor:pointer;flex:none}
+#pick::-webkit-color-swatch-wrapper{padding:4px}
+#pick::-webkit-color-swatch{border:none;border-radius:7px}
+#pick::-moz-color-swatch{border:none;border-radius:7px}
+#hex{flex:1;min-width:0;height:52px;border:2px solid var(--rule);border-radius:var(--radius);background:var(--surface);color:var(--ink);
+  font-family:var(--mono);font-size:19px;padding:0 14px;text-transform:uppercase}
+#hex[aria-invalid="true"]{border-color:var(--danger)}
+#dropper{width:52px;height:52px;padding:0;border-radius:var(--radius);flex:none}
+#dropper svg{width:20px;height:20px}
+.err{font-size:13px;color:var(--danger);margin:0}
+
+.swatches{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.sw{aspect-ratio:1;max-width:100%;border-radius:50%;border:4px solid;cursor:pointer;padding:0;transition:transform .12s}
+.sw:hover{transform:scale(1.08)}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--ink)}
+
+/* Settings */
+.settings{background:var(--surface);border:1px solid var(--rule);border-radius:16px;padding:16px 18px 18px;display:grid;gap:14px}
+.settings-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.group{display:grid;gap:12px}
+.group + .group{border-top:1px solid var(--rule);padding-top:14px}
+.slider{display:grid;gap:2px}
+.slider-top{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;gap:8px}
+.slider-top output{font-family:var(--mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.slider-top output.changed{color:var(--accent)}
+input[type=range]{width:100%;margin:4px 0 0;accent-color:var(--accent)}
+.settings .foot{margin:0;font-size:12.5px;color:var(--muted)}
+
+/* Result card */
+.result{background:var(--surface);border:1px solid var(--rule);border-radius:20px;padding:22px;display:grid;gap:20px;min-width:0}
+.palette{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:540px){.palette{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{display:grid;gap:8px;min-width:0;padding:0;border:none;background:none;text-align:left;cursor:pointer;border-radius:var(--radius)}
+.chip{display:block;aspect-ratio:1;max-width:100%;border-radius:var(--radius);border:1px solid var(--rule);transition:transform .12s}
+.tile:hover .chip{transform:translateY(-2px)}
+.tile.yours .chip{box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--ink)}
+.tile-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:6px}
+.tile-hex{display:block;font-family:var(--mono);font-size:16px;line-height:1.2;margin-top:2px}
+.copy-ic{width:28px;height:28px;display:grid;place-items:center;border:1.5px solid var(--rule);border-radius:8px;color:var(--muted)}
+.copy-ic svg{width:14px;height:14px}
+.tile:hover .copy-ic{border-color:var(--ink);color:var(--ink)}
+
+.preview{border-radius:14px;border:1px solid var(--rule);overflow:hidden;
+  background:repeating-conic-gradient(var(--check-a) 0 25%, var(--check-b) 0 50%) 0 0/24px 24px}
+.preview svg{display:block;width:100%;height:auto;max-width:100%}
+.c-fill{fill:var(--pf,#4CAF50)}
+.c-shadow{fill:var(--ps,#329D3C)}
+.c-light{fill:var(--ph,#73C974)}
+.c-line{fill:none;stroke:var(--pl,#137C22);stroke-width:5;stroke-linejoin:round;stroke-linecap:round}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* Saved */
+.saved{display:grid;gap:12px}
+.saved-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.saved-head span{font-size:13px;color:var(--muted)}
+.saved-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;list-style:none;margin:0;padding:0}
+.saved-item{display:grid;gap:8px;background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:10px}
+.saved-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}
+.strip{display:grid;grid-template-columns:repeat(4,1fr);height:32px;border-radius:8px;overflow:hidden;border:1px solid var(--rule);padding:0;cursor:pointer}
+.strip span{display:block}
+.strip:hover{outline:2px solid var(--ink);outline-offset:1px}
+.hexes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 10px;font-family:var(--mono);font-size:12.5px}
+.hexes button{background:none;border:none;padding:0;cursor:pointer;font:inherit;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hexes button:hover{text-decoration:underline}
+.hexes small{font-family:var(--body);color:var(--muted);font-size:11.5px;margin-right:4px}
+.note{font-size:12px;color:var(--muted)}
+.del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:4px 7px;border-radius:6px}
+.del:hover{color:var(--ink);background:var(--paper)}
+.empty{color:var(--muted);font-size:14px;margin:0}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;
+  opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;z-index:20;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){.sw,.chip,.toast{transition:none}.sw:hover{transform:none}.tile:hover .chip{transform:none}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>Line Art Colors</h1>
+    <p class="lede">Pick a color and get its line art, shadow and highlight colors. Click any color to copy it.</p>
+  </header>
+
+  <div class="layout">
+    <section class="pickpanel" aria-label="Choose your color">
+      <div class="field">
+        <label class="label" for="hex">Your color</label>
+        <div class="pick-row">
+          <input type="color" id="pick" value="#4CAF50" aria-label="Open color picker">
+          <input type="text" id="hex" value="#4CAF50" maxlength="7" spellcheck="false" autocomplete="off" aria-describedby="hexErr">
+          <button class="btn" id="dropper" type="button" hidden aria-label="Pick a color from the screen" title="Pick a color from the screen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg>
+          </button>
+        </div>
+        <p class="err" id="hexErr" hidden></p>
+      </div>
+      <div class="field">
+        <span class="label">Quick picks</span>
+        <div class="swatches" id="swatches"></div>
+      </div>
+    </section>
+
+    <section class="result" aria-label="Your colors">
+      <div class="palette">
+        <button type="button" class="tile" data-copy="line" aria-label="Copy line art color">
+          <span class="chip" id="lineChip"></span>
+          <span class="tile-meta"><span><span class="label">Line art</span><span class="tile-hex" id="lineHex"></span></span><span class="copy-ic" aria-hidden="true"></span></span>
+        </button>
+        <button type="button" class="tile" data-copy="shadow" aria-label="Copy shadow color">
+          <span class="chip" id="shadowChip"></span>
+          <span class="tile-meta"><span><span class="label">Shadow</span><span class="tile-hex" id="shadowHex"></span></span><span class="copy-ic" aria-hidden="true"></span></span>
+        </button>
+        <button type="button" class="tile yours" data-copy="fill" aria-label="Copy your color">
+          <span class="chip" id="fillChip"></span>
+          <span class="tile-meta"><span><span class="label">Your color</span><span class="tile-hex" id="fillHex"></span></span><span class="copy-ic" aria-hidden="true"></span></span>
+        </button>
+        <button type="button" class="tile" data-copy="light" aria-label="Copy highlight color">
+          <span class="chip" id="lightChip"></span>
+          <span class="tile-meta"><span><span class="label">Highlight</span><span class="tile-hex" id="lightHex"></span></span><span class="copy-ic" aria-hidden="true"></span></span>
+        </button>
+      </div>
+
+      <div class="preview">
+        <svg viewBox="0 0 400 210" id="art" role="img" aria-label="Sample shapes drawn with the line art, shadow, fill and highlight colors">
+          <defs>
+            <clipPath id="clipCircle"><circle cx="110" cy="110" r="68"></circle></clipPath>
+            <clipPath id="clipStar"><polygon class="starPts"></polygon></clipPath>
+            <clipPath id="clipDrop"><path d="M330 87 C372 131 366 183 330 183 C294 183 288 131 330 87 Z"></path></clipPath>
+          </defs>
+          <circle class="c-shadow" cx="110" cy="110" r="68"></circle>
+          <g clip-path="url(#clipCircle)"><circle class="c-fill" cx="95" cy="94" r="66"></circle></g>
+          <polygon class="starPts c-fill"></polygon>
+          <g clip-path="url(#clipStar)"><rect class="c-shadow" x="228" y="25" width="70" height="130"></rect></g>
+          <path class="c-shadow" d="M330 87 C372 131 366 183 330 183 C294 183 288 131 330 87 Z"></path>
+          <g clip-path="url(#clipDrop)"><path class="c-fill" transform="translate(-9 -9)" d="M330 87 C372 131 366 183 330 183 C294 183 288 131 330 87 Z"></path></g>
+          <ellipse class="c-light" cx="86" cy="81" rx="22" ry="12" transform="rotate(-28 86 81)"></ellipse>
+          <ellipse class="c-light" cx="214" cy="79" rx="5" ry="9" transform="rotate(-20 214 79)"></ellipse>
+          <ellipse class="c-light" cx="317" cy="133" rx="6" ry="14" transform="rotate(-12 317 133)"></ellipse>
+          <circle class="c-line" cx="110" cy="110" r="68"></circle>
+          <polygon class="starPts c-line"></polygon>
+          <path class="c-line" d="M330 87 C372 131 366 183 330 183 C294 183 288 131 330 87 Z"></path>
+          <path class="c-line" d="M188 191 C188 155 214 145 238 157 C224 167 222 181 236 191"></path>
+        </svg>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" type="button" id="save">Save colors</button>
+        <button class="btn" type="button" id="copyAll">Copy all four</button>
+      </div>
+    </section>
+
+    <section class="settings" aria-labelledby="settingsTitle">
+      <div class="settings-head">
+        <h2 id="settingsTitle">Settings</h2>
+        <button class="btn small" id="reset" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+          Reset
+        </button>
+      </div>
+      <div class="group">
+        <span class="label">Line art</span>
+        <div class="slider">
+          <div class="slider-top"><label for="sDark">Darkness</label><output id="oDark" for="sDark"></output></div>
+          <input type="range" id="sDark" min="5" max="45" step="1" value="20">
+        </div>
+        <div class="slider">
+          <div class="slider-top"><label for="sSat">Saturation</label><output id="oSat" for="sSat"></output></div>
+          <input type="range" id="sSat" min="1" max="2.5" step="0.05" value="1.5">
+        </div>
+        <div class="slider">
+          <div class="slider-top"><label for="sShift">Hue shift</label><output id="oShift" for="sShift"></output></div>
+          <input type="range" id="sShift" min="0" max="200" step="5" value="100">
+        </div>
+      </div>
+      <div class="group">
+        <span class="label">Shading</span>
+        <div class="slider">
+          <div class="slider-top"><label for="sShadow">Shadow depth</label><output id="oShadow" for="sShadow"></output></div>
+          <input type="range" id="sShadow" min="2" max="20" step="1" value="7">
+        </div>
+        <div class="slider">
+          <div class="slider-top"><label for="sLight">Highlight strength</label><output id="oLight" for="sLight"></output></div>
+          <input type="range" id="sLight" min="2" max="30" step="1" value="10">
+        </div>
+      </div>
+      <p class="foot">The defaults give a cartoon vector look: rich, dark outlines with soft shading. Set hue shift to 0% for plain darker shades.</p>
+    </section>
+  </div>
+
+  <section class="saved" aria-label="Saved colors">
+    <div class="saved-head">
+      <h2>Saved colors</h2>
+      <span>Click a strip to load it, or a code to copy it.</span>
+    </div>
+    <ul class="saved-list" id="savedList"></ul>
+    <p class="empty" id="savedEmpty" hidden>Nothing saved yet. Use “Save colors” to keep the colors for your drawing.</p>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  // ---- Color math ----
+  // How far the hue moves at each point of the color wheel (degrees). Tuned so your example's
+  // blue-violet hair (#5E4FA2) lands near its real outline (#49176D); warm colors lean toward red.
+  const SHIFT_KEYS=[[0,-3],[30,-6],[55,-9],[90,3],[120,6],[180,10],[215,14],[250,24],[280,12],[310,3],[340,-3],[360,-3]];
+  const DEFAULTS={dark:20,sat:1.5,shift:100,shadow:7,light:10};
+
+  function hueShiftFor(h){
+    for(let i=0;i<SHIFT_KEYS.length-1;i++){
+      const [a,da]=SHIFT_KEYS[i],[b,db]=SHIFT_KEYS[i+1];
+      if(h>=a&&h<=b) return da+(db-da)*(h-a)/(b-a);
+    }
+    return 0;
+  }
+  function hexToRgb(hex){const n=parseInt(hex.slice(1),16);return [(n>>16)&255,(n>>8)&255,n&255].map(v=>v/255);}
+  function rgbToHex(r,g,b){return '#'+[r,g,b].map(v=>Math.round(Math.max(0,Math.min(1,v))*255).toString(16).padStart(2,'0')).join('').toUpperCase();}
+  function rgbToHsv(r,g,b){
+    const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;let h=0;
+    if(d){ if(mx===r)h=((g-b)/d)%6; else if(mx===g)h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; if(h<0)h+=360; }
+    return [h,mx?d/mx:0,mx];
+  }
+  function hsvToRgb(h,s,v){
+    const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;let r=0,g=0,b=0;
+    if(h<60)[r,g]=[c,x];else if(h<120)[r,g]=[x,c];else if(h<180)[g,b]=[c,x];
+    else if(h<240)[g,b]=[x,c];else if(h<300)[r,b]=[x,c];else[r,b]=[c,x];
+    return [r+m,g+m,b+m];
+  }
+  const clamp=x=>Math.max(0,Math.min(1,x));
+  // Line art: darker, more saturated, hue shifted. Shadow: half of that move, smaller drop.
+  // Highlight: lighter, less saturated, hue nudged the other way.
+  function palette(hex,o){
+    const [h,s,v]=rgbToHsv(...hexToRgb(hex));
+    const dh=hueShiftFor(h)*(o.shift/100)*Math.min(1,s*2);
+    const mk=(shift,s2,v2)=>rgbToHex(...hsvToRgb(((h+shift)%360+360)%360,clamp(s2),clamp(v2)));
+    const lt=o.light/100;
+    return {
+      line:mk(dh,Math.min(1,s*o.sat),Math.max(v-o.dark/100,v*0.55)),
+      shadow:mk(dh*0.5,s*(1+(o.sat-1)*0.4),Math.max(v-o.shadow/100,v*0.7)),
+      light:mk(-dh*0.3,s*(1-lt*2.5),v+lt)
+    };
+  }
+
+  // ---- Elements ----
+  const $=id=>document.getElementById(id);
+  const pick=$('pick'),hexIn=$('hex'),hexErr=$('hexErr');
+  const sliders={dark:$('sDark'),sat:$('sSat'),shift:$('sShift'),shadow:$('sShadow'),light:$('sLight')};
+  const outputs={dark:[$('oDark'),v=>v],sat:[$('oSat'),v=>'×'+v.toFixed(2)],shift:[$('oShift'),v=>v+'%'],shadow:[$('oShadow'),v=>v],light:[$('oLight'),v=>v]};
+  let cur={fill:'#4CAF50',line:'',shadow:'',light:''};
+
+  const COPY_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+  document.querySelectorAll('.copy-ic').forEach(el=>el.innerHTML=COPY_ICON);
+
+  const PRESETS=[['Green','#4CAF50'],['Red','#E53935'],['Orange','#FB8C00'],['Yellow','#FDD835'],['Blue','#1E88E5'],['Purple','#8E24AA'],
+                 ['Sky','#9EDBF9'],['Pink','#F5B7D0'],['Mint','#A8E6CF'],['Brown','#8D6E63'],['Grey','#9E9E9E'],['White','#FFFFFF']];
+
+  // star points
+  (function(){const cx=228,cy=91,R=60,r=27,pts=[];for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rad=i%2?r:R;pts.push((cx+rad*Math.cos(a)).toFixed(1)+','+(cy+rad*Math.sin(a)).toFixed(1));}
+    document.querySelectorAll('.starPts').forEach(p=>p.setAttribute('points',pts.join(' ')));})();
+
+  function opts(){const o={};for(const k in sliders)o[k]=+sliders[k].value;return o;}
+
+  function normalizeHex(t){
+    t=(t||'').trim().replace(/^#/,'');
+    if(/^[0-9a-f]{3}$/i.test(t)) t=t.split('').map(c=>c+c).join('');
+    return /^[0-9a-f]{6}$/i.test(t)?'#'+t.toUpperCase():null;
+  }
+
+  function render(){
+    const o=opts(), p=palette(cur.fill,o);
+    cur.line=p.line; cur.shadow=p.shadow; cur.light=p.light;
+    for(const k of ['line','shadow','fill','light']){ $(k+'Chip').style.background=cur[k]; $(k+'Hex').textContent=cur[k]; }
+
+    const art=$('art').style;
+    art.setProperty('--pf',cur.fill); art.setProperty('--ps',cur.shadow); art.setProperty('--ph',cur.light); art.setProperty('--pl',cur.line);
+
+    let changed=false;
+    for(const k in outputs){
+      const [el,fmt]=outputs[k]; el.textContent=fmt(o[k]);
+      const diff=Math.abs(o[k]-DEFAULTS[k])>1e-9; el.classList.toggle('changed',diff); if(diff) changed=true;
+    }
+    $('reset').disabled=!changed;
+
+    document.querySelectorAll('.sw').forEach(b=>b.setAttribute('aria-pressed',b.dataset.hex===cur.fill?'true':'false'));
+    try{localStorage.setItem('lac-state',JSON.stringify({fill:cur.fill,...o}));}catch(e){}
+  }
+
+  function clearErr(){hexIn.removeAttribute('aria-invalid');hexErr.hidden=true;}
+  function showErr(msg){hexErr.textContent=msg;hexErr.hidden=false;}
+  function setFill(hex,fromText){
+    cur.fill=hex; pick.value=hex.toLowerCase();
+    if(!fromText) hexIn.value=hex;
+    clearErr(); render();
+  }
+
+  // quick picks
+  $('swatches').innerHTML=PRESETS.map(([n,h])=>{
+    const l=palette(h,DEFAULTS).line;
+    return '<button type="button" class="sw" data-hex="'+h+'" style="background:'+h+';border-color:'+l+'" aria-label="'+n+' '+h+'" title="'+n+'"></button>';
+  }).join('');
+  $('swatches').addEventListener('click',e=>{const b=e.target.closest('.sw');if(b)setFill(b.dataset.hex);});
+
+  pick.addEventListener('input',()=>setFill(pick.value.toUpperCase()));
+  hexIn.addEventListener('input',()=>{
+    const h=normalizeHex(hexIn.value);
+    if(h){setFill(h,true);}
+    else if(hexIn.value.replace('#','').length>=6){hexIn.setAttribute('aria-invalid','true');showErr('That isn’t a hex color. Use 6 characters from 0–9 and A–F, like #4CAF50.');}
+  });
+  hexIn.addEventListener('blur',()=>{hexIn.value=cur.fill;clearErr();});
+
+  // settings
+  Object.values(sliders).forEach(s=>s.addEventListener('input',render));
+  $('reset').addEventListener('click',()=>{for(const k in sliders)sliders[k].value=DEFAULTS[k];render();toast('Settings reset');});
+
+  // eyedropper (Chrome / Edge)
+  if('EyeDropper' in window){
+    const d=$('dropper'); d.hidden=false;
+    d.addEventListener('click',async()=>{
+      try{const r=await new window.EyeDropper().open();const h=normalizeHex(r.sRGBHex);if(h)setFill(h);}
+      catch(e){if(e&&e.name!=='AbortError')showErr('The screen picker isn’t allowed here. Paste a hex code instead.');}
+    });
+  }
+
+  // copy
+  const toastEl=$('toast');let tt;
+  function toast(msg){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>toastEl.classList.remove('show'),1700);}
+  function copy(text,msg){
+    const done=()=>toast(msg||('Copied '+text));
+    const fallback=()=>{const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+      let ok=false;try{ok=document.execCommand('copy');}catch(e){}ta.remove();ok?done():toast('Copy is blocked here. Select the code and press Ctrl+C');};
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,fallback);}else fallback();}catch(e){fallback();}
+  }
+  document.querySelector('.palette').addEventListener('click',e=>{const t=e.target.closest('[data-copy]');if(t)copy(cur[t.dataset.copy]);});
+  $('copyAll').addEventListener('click',()=>{
+    copy('Line art '+cur.line+'\nShadow '+cur.shadow+'\nFill '+cur.fill+'\nHighlight '+cur.light,'Copied all four colors');
+  });
+
+  // saved colors
+  function complete(p){
+    const fill=normalizeHex(p&&p.fill); if(!fill) return null;
+    const d=palette(fill,DEFAULTS);
+    return {fill,line:normalizeHex(p.line)||d.line,shadow:normalizeHex(p.shadow)||d.shadow,light:normalizeHex(p.light)||d.light,note:p.note||''};
+  }
+  const EXAMPLE=[
+    {fill:'#EBEFF1',line:'#BEC2C3',shadow:'#DEE3E5',note:'Sample: light body'},
+    {fill:'#5E4FA2',line:'#49176D',note:'Sample: purple hair'}
+  ];
+  let saved=EXAMPLE;
+  try{
+    const raw=localStorage.getItem('lac-sets')||localStorage.getItem('lac-pairs');
+    if(raw){const p=JSON.parse(raw);if(Array.isArray(p))saved=p;}
+  }catch(e){}
+  saved=saved.map(complete).filter(Boolean);
+  function persist(){try{localStorage.setItem('lac-sets',JSON.stringify(saved));}catch(e){}}
+  function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+  function renderSaved(){
+    $('savedEmpty').hidden=saved.length>0;
+    $('savedList').innerHTML=saved.map((p,i)=>
+      '<li class="saved-item">'+
+        '<div class="saved-top">'+
+          '<button type="button" class="strip" data-load="'+i+'" aria-label="Load '+esc(p.fill)+'">'+
+            ['line','shadow','fill','light'].map(k=>'<span style="background:'+esc(p[k])+'"></span>').join('')+
+          '</button>'+
+          '<button type="button" class="del" data-del="'+i+'" aria-label="Remove '+esc(p.fill)+'">×</button>'+
+        '</div>'+
+        '<div class="hexes">'+
+          [['line','Line'],['shadow','Shadow'],['fill','Fill'],['light','Light']].map(([k,n])=>
+            '<button type="button" data-copyhex="'+esc(p[k])+'"><small>'+n+'</small>'+esc(p[k])+'</button>').join('')+
+        '</div>'+
+        (p.note?'<span class="note">'+esc(p.note)+'</span>':'')+
+      '</li>').join('');
+  }
+  $('savedList').addEventListener('click',e=>{
+    const l=e.target.closest('[data-load]'); if(l){setFill(saved[+l.dataset.load].fill);window.scrollTo({top:0,behavior:'smooth'});return;}
+    const c=e.target.closest('[data-copyhex]'); if(c){copy(c.dataset.copyhex);return;}
+    const d=e.target.closest('[data-del]'); if(d){saved.splice(+d.dataset.del,1);persist();renderSaved();toast('Removed');}
+  });
+  $('save').addEventListener('click',()=>{
+    if(saved.some(p=>p.fill===cur.fill&&p.line===cur.line&&p.shadow===cur.shadow&&p.light===cur.light)){toast('These colors are already saved');return;}
+    saved.unshift({fill:cur.fill,line:cur.line,shadow:cur.shadow,light:cur.light,note:''});persist();renderSaved();toast('Saved '+cur.fill);
+  });
+
+  // restore last state
+  try{const st=JSON.parse(localStorage.getItem('lac-state')||'null');
+    if(st){const h=normalizeHex(st.fill);if(h)cur.fill=h;
+      for(const k in sliders){if(st[k]!=null&&!isNaN(+st[k]))sliders[k].value=st[k];}}}catch(e){}
+  setFill(cur.fill);
+  renderSaved();
+})();
+</script>
+</body>
+</html>
